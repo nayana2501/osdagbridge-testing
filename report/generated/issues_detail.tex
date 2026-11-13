@@ -1,0 +1,191 @@
+\subsection*{ISSUE-001: Every osdagbridge.\allowbreak{}core.\allowbreak{}* import fails: core/\allowbreak{}\_\allowbreak{}\_\allowbreak{}init\_\allowbreak{}\_\allowbreak{}.\allowbreak{}py imports a missing `models` module}
+\textbf{Severity:} Critical\quad \textbf{Component:} core\par
+\textbf{Steps to reproduce.} 1.\allowbreak{} pip install -e .\allowbreak{} 2.\allowbreak{} python -c "import osdagbridge.\allowbreak{}core.\allowbreak{}utils.\allowbreak{}units"\par
+\textbf{Expected.} The module imports.\allowbreak{}\par
+\textbf{Actual.} ModuleNotFoundError: No module named 'osdagbridge.\allowbreak{}core.\allowbreak{}models'.\allowbreak{} Because core/\allowbreak{}\_\allowbreak{}\_\allowbreak{}init\_\allowbreak{}\_\allowbreak{}.\allowbreak{}py runs `from .\allowbreak{}models import *`, 67 of the package's 74 modules are unimportable (everything under osdagbridge.\allowbreak{}core: utils, solvers, bridge\_\allowbreak{}types, loads, reports, components).\allowbreak{} Only the top-level package and the CLI/\allowbreak{}desktop stubs still import.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}01\_\allowbreak{}imports.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}core\_\allowbreak{}package\_\allowbreak{}imports, ::\allowbreak{}test\_\allowbreak{}every\_\allowbreak{}module\_\allowbreak{}is\_\allowbreak{}importable (xfail); ::\allowbreak{}test\_\allowbreak{}issue\_\allowbreak{}001\_\allowbreak{}root\_\allowbreak{}cause\_\allowbreak{}is\_\allowbreak{}the\_\allowbreak{}missing\_\allowbreak{}models\_\allowbreak{}module (passes)\par
+\textbf{Suggested fix.} Remove the star-import or add core/\allowbreak{}models.\allowbreak{}py.\allowbreak{} With an empty models.\allowbreak{}py all modules import, confirmed in a temporary copy.\allowbreak{}
+
+\subsection*{ISSUE-002: pyproject.\allowbreak{}toml declares license file `LICENSE`, but the repository contains `LICENSE.\allowbreak{}txt`}
+\textbf{Severity:} Low\quad \textbf{Component:} packaging\par
+\textbf{Steps to reproduce.} pip wheel --no-deps .\allowbreak{}\par
+\textbf{Expected.} Build completes without license warnings.\allowbreak{}\par
+\textbf{Actual.} BuildBackendWarning: File '.\allowbreak{}.\allowbreak{}.\allowbreak{}/\allowbreak{}LICENSE' cannot be found.\allowbreak{} Also reported: `project.\allowbreak{}license` as a TOML table and License classifiers are deprecated (setuptools will stop accepting them in 2027).\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}03\_\allowbreak{}packaging.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}pyproject\_\allowbreak{}license\_\allowbreak{}file\_\allowbreak{}exists\par
+\textbf{Suggested fix.} Rename the file or point to LICENSE.\allowbreak{}txt; migrate to `license = "MIT"` and `license-files`.\allowbreak{}
+
+\subsection*{ISSUE-003: No console-script entry point, so the documented `osdagbridge .\allowbreak{}.\allowbreak{}.\allowbreak{}` command does not exist}
+\textbf{Severity:} Medium\quad \textbf{Component:} packaging /\allowbreak{} CLI\par
+\textbf{Steps to reproduce.} 1.\allowbreak{} pip install -e .\allowbreak{} 2.\allowbreak{} osdagbridge --help\par
+\textbf{Expected.} README documents `osdagbridge analyze project.\allowbreak{}yaml --solver native`.\allowbreak{}\par
+\textbf{Actual.} Command not found: pyproject.\allowbreak{}toml has no [project.\allowbreak{}scripts]; the built wheel has no entry\_\allowbreak{}points.\allowbreak{}txt.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}02\_\allowbreak{}cli.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}console\_\allowbreak{}script\_\allowbreak{}is\_\allowbreak{}declared\par
+\textbf{Suggested fix.} Add `[project.\allowbreak{}scripts] osdagbridge = "osdagbridge.\allowbreak{}cli.\allowbreak{}\_\allowbreak{}\_\allowbreak{}main\_\allowbreak{}\_\allowbreak{}:main"` once the CLI parses arguments.\allowbreak{}
+
+\subsection*{ISSUE-004: CLI is a stub: ignores all arguments, never fails, has no `report` command}
+\textbf{Severity:} High\quad \textbf{Component:} CLI\par
+\textbf{Steps to reproduce.} 1.\allowbreak{} python -m osdagbridge.\allowbreak{}cli analyze does\_\allowbreak{}not\_\allowbreak{}exist.\allowbreak{}yaml --solver native 2.\allowbreak{} echo \$?\par
+\textbf{Expected.} An error for the missing file and a non-zero exit status; `--help` lists `analyze` and `report`.\allowbreak{}\par
+\textbf{Actual.} Prints `osdagbridge CLI (stub)` and exits 0 for every input, including unknown sub-commands.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}02\_\allowbreak{}cli.\allowbreak{}py (4 xfail tests: help, acknowledge file, missing file, unknown command)\par
+\textbf{Suggested fix.} Implement argparse/\allowbreak{}click sub-commands and return non-zero exit codes on error.\allowbreak{}
+
+\subsection*{ISSUE-005: Desktop app cannot be launched as documented; PySide6 is not a declared dependency}
+\textbf{Severity:} Medium\quad \textbf{Component:} desktop\par
+\textbf{Steps to reproduce.} python -m osdagbridge.\allowbreak{}desktop\par
+\textbf{Expected.} Starts the desktop UI (README).\allowbreak{}\par
+\textbf{Actual.} `No module named osdagbridge.\allowbreak{}desktop.\allowbreak{}\_\allowbreak{}\_\allowbreak{}main\_\allowbreak{}\_\allowbreak{}; 'osdagbridge.\allowbreak{}desktop' is a package and cannot be directly executed`.\allowbreak{} README says the GUI uses PySide6, but no optional-dependency group lists it.\allowbreak{} desktop/\allowbreak{}main.\allowbreak{}py only defines `start()` which prints a message.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}02\_\allowbreak{}cli.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}desktop\_\allowbreak{}package\_\allowbreak{}is\_\allowbreak{}runnable\_\allowbreak{}with\_\allowbreak{}dash\_\allowbreak{}m, ::\allowbreak{}test\_\allowbreak{}pyside6\_\allowbreak{}is\_\allowbreak{}declared\_\allowbreak{}as\_\allowbreak{}a\_\allowbreak{}dependency\par
+\textbf{Suggested fix.} Add desktop/\allowbreak{}\_\allowbreak{}\_\allowbreak{}main\_\allowbreak{}\_\allowbreak{}.\allowbreak{}py calling start(); add a `desktop = ["PySide6"]` extra.\allowbreak{}
+
+\subsection*{ISSUE-006: LaTeX report template is not shipped in the built wheel}
+\textbf{Severity:} Low\quad \textbf{Component:} packaging /\allowbreak{} reports\par
+\textbf{Steps to reproduce.} Build a wheel and list its contents.\allowbreak{}\par
+\textbf{Expected.} core/\allowbreak{}reports/\allowbreak{}templates/\allowbreak{}default\_\allowbreak{}template.\allowbreak{}tex is included.\allowbreak{}\par
+\textbf{Actual.} Not included: no package-data /\allowbreak{} MANIFEST configuration, and the templates directory is not a package.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}03\_\allowbreak{}packaging.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}report\_\allowbreak{}templates\_\allowbreak{}are\_\allowbreak{}shipped\_\allowbreak{}in\_\allowbreak{}the\_\allowbreak{}wheel\par
+\textbf{Suggested fix.} Declare `[tool.\allowbreak{}setuptools.\allowbreak{}package-data]` for `*.\allowbreak{}tex`.\allowbreak{}
+
+\subsection*{ISSUE-007: Code registry knows only IRC:6-2017; IRC:22-2015 and IRC:24-2010 are listed in README but unavailable}
+\textbf{Severity:} Medium\quad \textbf{Component:} codes\par
+\textbf{Steps to reproduce.} get\_\allowbreak{}code('IRC:22-2015')\par
+\textbf{Expected.} Returns the code module (README: `Included under core/\allowbreak{}utils/\allowbreak{}codes/\allowbreak{}`).\allowbreak{}\par
+\textbf{Actual.} Returns None.\allowbreak{} irc22\_\allowbreak{}2015.\allowbreak{}py and irc24\_\allowbreak{}2010.\allowbreak{}py contain only a docstring.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}04\_\allowbreak{}core\_\allowbreak{}behaviour.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}registry\_\allowbreak{}contains\_\allowbreak{}all\_\allowbreak{}documented\_\allowbreak{}codes (2 params)\par
+\textbf{Suggested fix.} Register the modules once implemented, or mark them 'planned' in README.\allowbreak{}
+
+\subsection*{ISSUE-008: IRC:6 vehicle loads and Class A vehicle are empty lists}
+\textbf{Severity:} High\quad \textbf{Component:} loads\par
+\textbf{Steps to reproduce.} get\_\allowbreak{}vehicle\_\allowbreak{}loads(); class\_\allowbreak{}a()\par
+\textbf{Expected.} Axle loads and spacings per IRC:6-2017.\allowbreak{}\par
+\textbf{Actual.} Both return [].\allowbreak{} Any analysis built on them would run with no live load.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}04\_\allowbreak{}core\_\allowbreak{}behaviour.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}irc6\_\allowbreak{}defines\_\allowbreak{}vehicle\_\allowbreak{}loads, ::\allowbreak{}test\_\allowbreak{}class\_\allowbreak{}a\_\allowbreak{}vehicle\_\allowbreak{}has\_\allowbreak{}axles\par
+\textbf{Suggested fix.} Implement the load models with unit tests against IRC:6 tables.\allowbreak{}
+
+\subsection*{ISSUE-009: to\_\allowbreak{}si() never converts units and silently accepts unknown units}
+\textbf{Severity:} Medium\quad \textbf{Component:} utils\par
+\textbf{Steps to reproduce.} to\_\allowbreak{}si(250.\allowbreak{}0, 'mm'); to\_\allowbreak{}si(1.\allowbreak{}0, 'furlong')\par
+\textbf{Expected.} 0.\allowbreak{}25 for mm to m; an error for an unknown unit.\allowbreak{}\par
+\textbf{Actual.} Returns the input unchanged (250.\allowbreak{}0) in every case.\allowbreak{} A 250 mm value would be treated as 250 m.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}04\_\allowbreak{}core\_\allowbreak{}behaviour.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}to\_\allowbreak{}si\_\allowbreak{}converts\_\allowbreak{}units (3 params), ::\allowbreak{}test\_\allowbreak{}to\_\allowbreak{}si\_\allowbreak{}rejects\_\allowbreak{}unknown\_\allowbreak{}unit\par
+\textbf{Suggested fix.} Implement a unit table and raise OsdagError on unknown units.\allowbreak{}
+
+\subsection*{ISSUE-010: validate\_\allowbreak{}project() returns True for every input, including None, \{\} and negative span}
+\textbf{Severity:} Medium\quad \textbf{Component:} utils\par
+\textbf{Steps to reproduce.} validate\_\allowbreak{}project(None); validate\_\allowbreak{}project(\{'project': \{'span\_\allowbreak{}m': -5.\allowbreak{}0\}\})\par
+\textbf{Expected.} Invalid projects are rejected.\allowbreak{}\par
+\textbf{Actual.} Always True.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}04\_\allowbreak{}core\_\allowbreak{}behaviour.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}validate\_\allowbreak{}project\_\allowbreak{}rejects\_\allowbreak{}invalid\_\allowbreak{}input (4 params)\par
+\textbf{Suggested fix.} Validate with pydantic (already a declared dependency) and raise OsdagError.\allowbreak{}
+
+\subsection*{ISSUE-011: PlateGirderDTO has a single field (`name`); no span, width, loading or section data}
+\textbf{Severity:} Medium\quad \textbf{Component:} plate\_\allowbreak{}girder\par
+\textbf{Steps to reproduce.} dataclasses.\allowbreak{}fields(PlateGirderDTO)\par
+\textbf{Expected.} An input schema able to represent examples/\allowbreak{}plate\_\allowbreak{}girder/\allowbreak{}example\_\allowbreak{}basic.\allowbreak{}yaml (span\_\allowbreak{}m: 30.\allowbreak{}0).\allowbreak{}\par
+\textbf{Actual.} Only `name: str`.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}04\_\allowbreak{}core\_\allowbreak{}behaviour.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}dto\_\allowbreak{}models\_\allowbreak{}basic\_\allowbreak{}geometry\par
+\textbf{Suggested fix.} Model the YAML schema (pydantic) and load it from file.\allowbreak{}
+
+\subsection*{ISSUE-012: preliminary\_\allowbreak{}sizing() returns the girder name as `depth\_\allowbreak{}m`}
+\textbf{Severity:} Medium\quad \textbf{Component:} plate\_\allowbreak{}girder\par
+\textbf{Steps to reproduce.} preliminary\_\allowbreak{}sizing(PlateGirderDTO(name='demo'))\par
+\textbf{Expected.} A numeric depth in metres.\allowbreak{}\par
+\textbf{Actual.} \{'depth\_\allowbreak{}m': 'demo'\}: a string where a length is expected; downstream arithmetic would raise or mislead.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}04\_\allowbreak{}core\_\allowbreak{}behaviour.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}preliminary\_\allowbreak{}sizing\_\allowbreak{}depth\_\allowbreak{}is\_\allowbreak{}numeric\par
+\textbf{Suggested fix.} Compute depth from span (e.\allowbreak{}g.\allowbreak{} span/\allowbreak{}L-over-d ratio) and return a float.\allowbreak{}
+
+\subsection*{ISSUE-013: design(), analyse() and run\_\allowbreak{}native\_\allowbreak{}analysis() report success for any input; solver errors use RuntimeError}
+\textbf{Severity:} Medium\quad \textbf{Component:} plate\_\allowbreak{}girder /\allowbreak{} solvers\par
+\textbf{Steps to reproduce.} design(None); analyse(object(), solver='no-such-solver'); run\_\allowbreak{}native\_\allowbreak{}analysis(None)\par
+\textbf{Expected.} Invalid input or an unknown solver is rejected with an OsdagError.\allowbreak{}\par
+\textbf{Actual.} Each returns an 'ok' result.\allowbreak{} The OpenSees/\allowbreak{}OspGrillage adapters raise a bare RuntimeError instead of the project's own OsdagError.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}04\_\allowbreak{}core\_\allowbreak{}behaviour.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}design\_\allowbreak{}rejects\_\allowbreak{}garbage\_\allowbreak{}input, ::\allowbreak{}test\_\allowbreak{}analyse\_\allowbreak{}rejects\_\allowbreak{}unknown\_\allowbreak{}solver, ::\allowbreak{}test\_\allowbreak{}native\_\allowbreak{}solver\_\allowbreak{}rejects\_\allowbreak{}null\_\allowbreak{}model, ::\allowbreak{}test\_\allowbreak{}adapters\_\allowbreak{}use\_\allowbreak{}project\_\allowbreak{}exception\_\allowbreak{}type\par
+\textbf{Suggested fix.} Validate inputs, dispatch on the solver name, derive adapter errors from OsdagError.\allowbreak{}
+
+\subsection*{ISSUE-014: Girder area() and check\_\allowbreak{}local\_\allowbreak{}buckling() take no inputs; the check always passes}
+\textbf{Severity:} High\quad \textbf{Component:} bridge\_\allowbreak{}components\par
+\textbf{Steps to reproduce.} check\_\allowbreak{}local\_\allowbreak{}buckling(b=1.\allowbreak{}0, t=0.\allowbreak{}001, fy=250.\allowbreak{}0)\par
+\textbf{Expected.} An absurdly slender plate (b/\allowbreak{}t = 1000) fails the check; area() derives from the section.\allowbreak{}\par
+\textbf{Actual.} TypeError: unexpected keyword argument (no parameters at all).\allowbreak{} With no arguments the check returns True and area() returns 0.\allowbreak{}0, so a structural check that cannot fail would give false assurance.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}04\_\allowbreak{}core\_\allowbreak{}behaviour.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}girder\_\allowbreak{}area\_\allowbreak{}computes\_\allowbreak{}from\_\allowbreak{}section, ::\allowbreak{}test\_\allowbreak{}local\_\allowbreak{}buckling\_\allowbreak{}check\_\allowbreak{}uses\_\allowbreak{}section\par
+\textbf{Suggested fix.} Implement per IS 800 /\allowbreak{} IRC:24 limits and add boundary-value tests.\allowbreak{}
+
+\subsection*{ISSUE-015: Three different versions: \_\allowbreak{}\_\allowbreak{}version\_\allowbreak{}\_\allowbreak{} = 0.\allowbreak{}0.\allowbreak{}0, pyproject 0.\allowbreak{}1.\allowbreak{}0, setup.\allowbreak{}cfg 0.\allowbreak{}0.\allowbreak{}0}
+\textbf{Severity:} Low\quad \textbf{Component:} packaging\par
+\textbf{Steps to reproduce.} python -c "import osdagbridge, importlib.\allowbreak{}metadata as m; print(osdagbridge.\allowbreak{}\_\allowbreak{}\_\allowbreak{}version\_\allowbreak{}\_\allowbreak{}, m.\allowbreak{}version('osdagbridge'))"\par
+\textbf{Expected.} One version everywhere.\allowbreak{}\par
+\textbf{Actual.} Prints `0.\allowbreak{}0.\allowbreak{}0 0.\allowbreak{}1.\allowbreak{}0`.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}03\_\allowbreak{}packaging.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}version\_\allowbreak{}is\_\allowbreak{}single\_\allowbreak{}sourced, ::\allowbreak{}test\_\allowbreak{}setup\_\allowbreak{}cfg\_\allowbreak{}version\_\allowbreak{}matches\_\allowbreak{}pyproject\par
+\textbf{Suggested fix.} Single-source the version (dynamic = ["version"]) and delete setup.\allowbreak{}cfg.\allowbreak{}
+
+\subsection*{ISSUE-016: requires-python >=3.\allowbreak{}9 but classifiers list only Python 3.\allowbreak{}10 and 3.\allowbreak{}11}
+\textbf{Severity:} Low\quad \textbf{Component:} packaging\par
+\textbf{Steps to reproduce.} Read pyproject.\allowbreak{}toml.\allowbreak{}\par
+\textbf{Expected.} Declared floor equals the oldest tested version.\allowbreak{}\par
+\textbf{Actual.} Floor 3.\allowbreak{}9 versus oldest classifier 3.\allowbreak{}10; 3.\allowbreak{}12+ not classified (install succeeded on 3.\allowbreak{}13).\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}03\_\allowbreak{}packaging.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}requires\_\allowbreak{}python\_\allowbreak{}matches\_\allowbreak{}classifiers\par
+\textbf{Suggested fix.} Align requires-python, classifiers, ruff/\allowbreak{}mypy targets, and add a CI matrix.\allowbreak{}
+
+\subsection*{ISSUE-017: Author e-mail domain looks like a typo: `contact-osdag@efossee.\allowbreak{}in`}
+\textbf{Severity:} Low\quad \textbf{Component:} packaging\par
+\textbf{Steps to reproduce.} Read pyproject.\allowbreak{}toml [project].\allowbreak{}authors.\allowbreak{}\par
+\textbf{Expected.} The FOSSEE pages use contact-osdag@fossee.\allowbreak{}in.\allowbreak{}\par
+\textbf{Actual.} Domain is efossee.\allowbreak{}in, so mail to the package contact would not reach the team.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}03\_\allowbreak{}packaging.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}author\_\allowbreak{}email\_\allowbreak{}domain\_\allowbreak{}looks\_\allowbreak{}valid\par
+\textbf{Suggested fix.} Correct the address.\allowbreak{}
+
+\subsection*{ISSUE-018: core/\allowbreak{}bridge\_\allowbreak{}components/\allowbreak{}super\_\allowbreak{}structure/\allowbreak{} has no \_\allowbreak{}\_\allowbreak{}init\_\allowbreak{}\_\allowbreak{}.\allowbreak{}py}
+\textbf{Severity:} Low\quad \textbf{Component:} packaging\par
+\textbf{Steps to reproduce.} List packages for src/\allowbreak{}osdagbridge.\allowbreak{}\par
+\textbf{Expected.} Every package directory is a regular package.\allowbreak{}\par
+\textbf{Actual.} Implicit namespace package: it works in the wheel, but is inconsistent with every sibling and can be skipped by tools that do not support namespace packages.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}03\_\allowbreak{}packaging.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}every\_\allowbreak{}package\_\allowbreak{}directory\_\allowbreak{}has\_\allowbreak{}init\par
+\textbf{Suggested fix.} Add an \_\allowbreak{}\_\allowbreak{}init\_\allowbreak{}\_\allowbreak{}.\allowbreak{}py.\allowbreak{}
+
+\subsection*{ISSUE-019: README cites .\allowbreak{}github/\allowbreak{}workflows/\allowbreak{}ci.\allowbreak{}yml but the repository has no CI}
+\textbf{Severity:} Medium\quad \textbf{Component:} CI\par
+\textbf{Steps to reproduce.} ls .\allowbreak{}github\par
+\textbf{Expected.} Workflow file exists (README: `Continuous integration runs automatically`).\allowbreak{}\par
+\textbf{Actual.} No .\allowbreak{}github directory.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}05\_\allowbreak{}docs\_\allowbreak{}and\_\allowbreak{}repo.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}ci\_\allowbreak{}workflow\_\allowbreak{}mentioned\_\allowbreak{}in\_\allowbreak{}readme\_\allowbreak{}exists\par
+\textbf{Suggested fix.} Add a workflow.\allowbreak{} A ready-made one is in this project: .\allowbreak{}github/\allowbreak{}workflows/\allowbreak{}ci.\allowbreak{}yml.\allowbreak{}
+
+\subsection*{ISSUE-020: README paths are wrong: bridge\_\allowbreak{}types/\allowbreak{}, bridge\_\allowbreak{}components/\allowbreak{} and web/\allowbreak{} are not under src/\allowbreak{}osdagbridge/\allowbreak{}}
+\textbf{Severity:} Low\quad \textbf{Component:} documentation\par
+\textbf{Steps to reproduce.} Follow README: `python src/\allowbreak{}osdagbridge/\allowbreak{}web/\allowbreak{}backend/\allowbreak{}manage.\allowbreak{}py runserver`.\allowbreak{}\par
+\textbf{Expected.} Documented paths exist.\allowbreak{}\par
+\textbf{Actual.} Real locations are core/\allowbreak{}bridge\_\allowbreak{}types, core/\allowbreak{}bridge\_\allowbreak{}components and top-level web/\allowbreak{}.\allowbreak{} The runserver command fails with file-not-found; the real manage.\allowbreak{}py is a stub that prints `Django manage stub`.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}05\_\allowbreak{}docs\_\allowbreak{}and\_\allowbreak{}repo.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}readme\_\allowbreak{}code\_\allowbreak{}locations\_\allowbreak{}exist, ::\allowbreak{}test\_\allowbreak{}readme\_\allowbreak{}runserver\_\allowbreak{}path\_\allowbreak{}exists\par
+\textbf{Suggested fix.} Update the README (project-structure tree and Key Code Locations).\allowbreak{}
+
+\subsection*{ISSUE-021: docs/\allowbreak{}architecture.\allowbreak{}md, developer\_\allowbreak{}guide.\allowbreak{}md and user\_\allowbreak{}guide.\allowbreak{}md are one-line placeholders}
+\textbf{Severity:} Low\quad \textbf{Component:} documentation\par
+\textbf{Steps to reproduce.} cat docs/\allowbreak{}*.\allowbreak{}md\par
+\textbf{Expected.} Usable documentation.\allowbreak{}\par
+\textbf{Actual.} Each reads 'Documentation placeholder.\allowbreak{}'\par
+\textbf{Covered by.} test\_\allowbreak{}05\_\allowbreak{}docs\_\allowbreak{}and\_\allowbreak{}repo.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}docs\_\allowbreak{}are\_\allowbreak{}not\_\allowbreak{}placeholders (3 params)\par
+\textbf{Suggested fix.} Write the guides; this report's findings can seed the developer guide.\allowbreak{}
+
+\subsection*{ISSUE-022: examples/\allowbreak{}plate\_\allowbreak{}girder/\allowbreak{}verification\_\allowbreak{}case\_\allowbreak{}01.\allowbreak{}yaml and \_\allowbreak{}02.\allowbreak{}yaml contain only a comment}
+\textbf{Severity:} Low\quad \textbf{Component:} examples\par
+\textbf{Steps to reproduce.} python -c "import yaml; print(yaml.\allowbreak{}safe\_\allowbreak{}load(open('verification\_\allowbreak{}case\_\allowbreak{}01.\allowbreak{}yaml')))"\par
+\textbf{Expected.} Benchmark input data for verification.\allowbreak{}\par
+\textbf{Actual.} Parses to None.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}05\_\allowbreak{}docs\_\allowbreak{}and\_\allowbreak{}repo.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}verification\_\allowbreak{}cases\_\allowbreak{}contain\_\allowbreak{}data (2 params)\par
+\textbf{Suggested fix.} Add the DDCL benchmark inputs and expected outputs.\allowbreak{}
+
+\subsection*{ISSUE-023: Upstream test suite is `assert True` placeholders, so it passes while the package's core is unimportable}
+\textbf{Severity:} High\quad \textbf{Component:} tests\par
+\textbf{Steps to reproduce.} pytest -q in a fresh install\par
+\textbf{Expected.} Failing tests when the package is broken.\allowbreak{}\par
+\textbf{Actual.} `.\allowbreak{}.\allowbreak{}.\allowbreak{}.\allowbreak{}.\allowbreak{}.\allowbreak{}` all pass, yet ISSUE-001 makes osdagbridge.\allowbreak{}core unusable.\allowbreak{} All 7 test files are placeholders.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}05\_\allowbreak{}docs\_\allowbreak{}and\_\allowbreak{}repo.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}upstream\_\allowbreak{}tests\_\allowbreak{}contain\_\allowbreak{}real\_\allowbreak{}assertions\par
+\textbf{Suggested fix.} Replace the placeholders.\allowbreak{} This project's tests can be ported as a starting point.\allowbreak{}
+
+\subsection*{ISSUE-024: tests/\allowbreak{}integration/\allowbreak{}verification\_\allowbreak{}ddcl\_\allowbreak{}cases.\allowbreak{}py is never collected by pytest}
+\textbf{Severity:} Low\quad \textbf{Component:} tests\par
+\textbf{Steps to reproduce.} pytest --collect-only -q\par
+\textbf{Expected.} 7 test files are collected.\allowbreak{}\par
+\textbf{Actual.} 6 are collected; verification\_\allowbreak{}ddcl\_\allowbreak{}cases.\allowbreak{}py does not match the default `test\_\allowbreak{}*.\allowbreak{}py` pattern, so even once filled in, the verification cases would never run.\allowbreak{}\par
+\textbf{Covered by.} test\_\allowbreak{}05\_\allowbreak{}docs\_\allowbreak{}and\_\allowbreak{}repo.\allowbreak{}py::\allowbreak{}test\_\allowbreak{}every\_\allowbreak{}upstream\_\allowbreak{}test\_\allowbreak{}file\_\allowbreak{}is\_\allowbreak{}collectable\par
+\textbf{Suggested fix.} Rename it to test\_\allowbreak{}verification\_\allowbreak{}ddcl\_\allowbreak{}cases.\allowbreak{}py.\allowbreak{}

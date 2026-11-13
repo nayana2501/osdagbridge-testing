@@ -1,0 +1,235 @@
+# Single source of truth for all findings. ISSUES.md and the report table are generated from it.
+# severity: Critical = package unusable | High = promised feature absent or checks give false assurance
+#           Medium = documented behaviour does not work | Low = metadata / documentation / hygiene
+meta:
+  repository: https://github.com/osdag-admin/OsdagBridge
+  commit: 2cb7ddc
+  commit_date: 2025-12-07
+  python: "3.13.18"
+  pytest: "9.1.1"
+  os: "Linux 6.18 (x86_64)"
+issues:
+- id: ISSUE-001
+  title: "Every osdagbridge.core.* import fails: core/__init__.py imports a missing `models` module"
+  severity: Critical
+  component: core
+  steps: |
+    1. pip install -e .
+    2. python -c "import osdagbridge.core.utils.units"
+  expected: "The module imports."
+  actual: "ModuleNotFoundError: No module named 'osdagbridge.core.models'. Because core/__init__.py runs `from .models import *`, 67 of the package's 74 modules are unimportable (everything under osdagbridge.core: utils, solvers, bridge_types, loads, reports, components). Only the top-level package and the CLI/desktop stubs still import."
+  tests: "test_01_imports.py::test_core_package_imports, ::test_every_module_is_importable (xfail); ::test_issue_001_root_cause_is_the_missing_models_module (passes)"
+  fix: "Remove the star-import or add core/models.py. With an empty models.py all modules import, confirmed in a temporary copy."
+- id: ISSUE-002
+  title: "pyproject.toml declares license file `LICENSE`, but the repository contains `LICENSE.txt`"
+  severity: Low
+  component: packaging
+  steps: "pip wheel --no-deps ."
+  expected: "Build completes without license warnings."
+  actual: "BuildBackendWarning: File '.../LICENSE' cannot be found. Also reported: `project.license` as a TOML table and License classifiers are deprecated (setuptools will stop accepting them in 2027)."
+  tests: "test_03_packaging.py::test_pyproject_license_file_exists"
+  fix: "Rename the file or point to LICENSE.txt; migrate to `license = \"MIT\"` and `license-files`."
+- id: ISSUE-003
+  title: "No console-script entry point, so the documented `osdagbridge ...` command does not exist"
+  severity: Medium
+  component: packaging / CLI
+  steps: |
+    1. pip install -e .
+    2. osdagbridge --help
+  expected: "README documents `osdagbridge analyze project.yaml --solver native`."
+  actual: "Command not found: pyproject.toml has no [project.scripts]; the built wheel has no entry_points.txt."
+  tests: "test_02_cli.py::test_console_script_is_declared"
+  fix: "Add `[project.scripts] osdagbridge = \"osdagbridge.cli.__main__:main\"` once the CLI parses arguments."
+- id: ISSUE-004
+  title: "CLI is a stub: ignores all arguments, never fails, has no `report` command"
+  severity: High
+  component: CLI
+  steps: |
+    1. python -m osdagbridge.cli analyze does_not_exist.yaml --solver native
+    2. echo $?
+  expected: "An error for the missing file and a non-zero exit status; `--help` lists `analyze` and `report`."
+  actual: "Prints `osdagbridge CLI (stub)` and exits 0 for every input, including unknown sub-commands."
+  tests: "test_02_cli.py (4 xfail tests: help, acknowledge file, missing file, unknown command)"
+  fix: "Implement argparse/click sub-commands and return non-zero exit codes on error."
+- id: ISSUE-005
+  title: "Desktop app cannot be launched as documented; PySide6 is not a declared dependency"
+  severity: Medium
+  component: desktop
+  steps: "python -m osdagbridge.desktop"
+  expected: "Starts the desktop UI (README)."
+  actual: "`No module named osdagbridge.desktop.__main__; 'osdagbridge.desktop' is a package and cannot be directly executed`. README says the GUI uses PySide6, but no optional-dependency group lists it. desktop/main.py only defines `start()` which prints a message."
+  tests: "test_02_cli.py::test_desktop_package_is_runnable_with_dash_m, ::test_pyside6_is_declared_as_a_dependency"
+  fix: "Add desktop/__main__.py calling start(); add a `desktop = [\"PySide6\"]` extra."
+- id: ISSUE-006
+  title: "LaTeX report template is not shipped in the built wheel"
+  severity: Low
+  component: packaging / reports
+  steps: "Build a wheel and list its contents."
+  expected: "core/reports/templates/default_template.tex is included."
+  actual: "Not included: no package-data / MANIFEST configuration, and the templates directory is not a package."
+  tests: "test_03_packaging.py::test_report_templates_are_shipped_in_the_wheel"
+  fix: "Declare `[tool.setuptools.package-data]` for `*.tex`."
+- id: ISSUE-007
+  title: "Code registry knows only IRC:6-2017; IRC:22-2015 and IRC:24-2010 are listed in README but unavailable"
+  severity: Medium
+  component: codes
+  steps: "get_code('IRC:22-2015')"
+  expected: "Returns the code module (README: `Included under core/utils/codes/`)."
+  actual: "Returns None. irc22_2015.py and irc24_2010.py contain only a docstring."
+  tests: "test_04_core_behaviour.py::test_registry_contains_all_documented_codes (2 params)"
+  fix: "Register the modules once implemented, or mark them 'planned' in README."
+- id: ISSUE-008
+  title: "IRC:6 vehicle loads and Class A vehicle are empty lists"
+  severity: High
+  component: loads
+  steps: "get_vehicle_loads(); class_a()"
+  expected: "Axle loads and spacings per IRC:6-2017."
+  actual: "Both return []. Any analysis built on them would run with no live load."
+  tests: "test_04_core_behaviour.py::test_irc6_defines_vehicle_loads, ::test_class_a_vehicle_has_axles"
+  fix: "Implement the load models with unit tests against IRC:6 tables."
+- id: ISSUE-009
+  title: "to_si() never converts units and silently accepts unknown units"
+  severity: Medium
+  component: utils
+  steps: "to_si(250.0, 'mm'); to_si(1.0, 'furlong')"
+  expected: "0.25 for mm to m; an error for an unknown unit."
+  actual: "Returns the input unchanged (250.0) in every case. A 250 mm value would be treated as 250 m."
+  tests: "test_04_core_behaviour.py::test_to_si_converts_units (3 params), ::test_to_si_rejects_unknown_unit"
+  fix: "Implement a unit table and raise OsdagError on unknown units."
+- id: ISSUE-010
+  title: "validate_project() returns True for every input, including None, {} and negative span"
+  severity: Medium
+  component: utils
+  steps: "validate_project(None); validate_project({'project': {'span_m': -5.0}})"
+  expected: "Invalid projects are rejected."
+  actual: "Always True."
+  tests: "test_04_core_behaviour.py::test_validate_project_rejects_invalid_input (4 params)"
+  fix: "Validate with pydantic (already a declared dependency) and raise OsdagError."
+- id: ISSUE-011
+  title: "PlateGirderDTO has a single field (`name`); no span, width, loading or section data"
+  severity: Medium
+  component: plate_girder
+  steps: "dataclasses.fields(PlateGirderDTO)"
+  expected: "An input schema able to represent examples/plate_girder/example_basic.yaml (span_m: 30.0)."
+  actual: "Only `name: str`."
+  tests: "test_04_core_behaviour.py::test_dto_models_basic_geometry"
+  fix: "Model the YAML schema (pydantic) and load it from file."
+- id: ISSUE-012
+  title: "preliminary_sizing() returns the girder name as `depth_m`"
+  severity: Medium
+  component: plate_girder
+  steps: "preliminary_sizing(PlateGirderDTO(name='demo'))"
+  expected: "A numeric depth in metres."
+  actual: "{'depth_m': 'demo'}: a string where a length is expected; downstream arithmetic would raise or mislead."
+  tests: "test_04_core_behaviour.py::test_preliminary_sizing_depth_is_numeric"
+  fix: "Compute depth from span (e.g. span/L-over-d ratio) and return a float."
+- id: ISSUE-013
+  title: "design(), analyse() and run_native_analysis() report success for any input; solver errors use RuntimeError"
+  severity: Medium
+  component: plate_girder / solvers
+  steps: |
+    design(None); analyse(object(), solver='no-such-solver'); run_native_analysis(None)
+  expected: "Invalid input or an unknown solver is rejected with an OsdagError."
+  actual: "Each returns an 'ok' result. The OpenSees/OspGrillage adapters raise a bare RuntimeError instead of the project's own OsdagError."
+  tests: "test_04_core_behaviour.py::test_design_rejects_garbage_input, ::test_analyse_rejects_unknown_solver, ::test_native_solver_rejects_null_model, ::test_adapters_use_project_exception_type"
+  fix: "Validate inputs, dispatch on the solver name, derive adapter errors from OsdagError."
+- id: ISSUE-014
+  title: "Girder area() and check_local_buckling() take no inputs; the check always passes"
+  severity: High
+  component: bridge_components
+  steps: "check_local_buckling(b=1.0, t=0.001, fy=250.0)"
+  expected: "An absurdly slender plate (b/t = 1000) fails the check; area() derives from the section."
+  actual: "TypeError: unexpected keyword argument (no parameters at all). With no arguments the check returns True and area() returns 0.0, so a structural check that cannot fail would give false assurance."
+  tests: "test_04_core_behaviour.py::test_girder_area_computes_from_section, ::test_local_buckling_check_uses_section"
+  fix: "Implement per IS 800 / IRC:24 limits and add boundary-value tests."
+- id: ISSUE-015
+  title: "Three different versions: __version__ = 0.0.0, pyproject 0.1.0, setup.cfg 0.0.0"
+  severity: Low
+  component: packaging
+  steps: |
+    python -c "import osdagbridge, importlib.metadata as m; print(osdagbridge.__version__, m.version('osdagbridge'))"
+  expected: "One version everywhere."
+  actual: "Prints `0.0.0 0.1.0`."
+  tests: "test_03_packaging.py::test_version_is_single_sourced, ::test_setup_cfg_version_matches_pyproject"
+  fix: "Single-source the version (dynamic = [\"version\"]) and delete setup.cfg."
+- id: ISSUE-016
+  title: "requires-python >=3.9 but classifiers list only Python 3.10 and 3.11"
+  severity: Low
+  component: packaging
+  steps: "Read pyproject.toml."
+  expected: "Declared floor equals the oldest tested version."
+  actual: "Floor 3.9 versus oldest classifier 3.10; 3.12+ not classified (install succeeded on 3.13)."
+  tests: "test_03_packaging.py::test_requires_python_matches_classifiers"
+  fix: "Align requires-python, classifiers, ruff/mypy targets, and add a CI matrix."
+- id: ISSUE-017
+  title: "Author e-mail domain looks like a typo: `contact-osdag@efossee.in`"
+  severity: Low
+  component: packaging
+  steps: "Read pyproject.toml [project].authors."
+  expected: "The FOSSEE pages use contact-osdag@fossee.in."
+  actual: "Domain is efossee.in, so mail to the package contact would not reach the team."
+  tests: "test_03_packaging.py::test_author_email_domain_looks_valid"
+  fix: "Correct the address."
+- id: ISSUE-018
+  title: "core/bridge_components/super_structure/ has no __init__.py"
+  severity: Low
+  component: packaging
+  steps: "List packages for src/osdagbridge."
+  expected: "Every package directory is a regular package."
+  actual: "Implicit namespace package: it works in the wheel, but is inconsistent with every sibling and can be skipped by tools that do not support namespace packages."
+  tests: "test_03_packaging.py::test_every_package_directory_has_init"
+  fix: "Add an __init__.py."
+- id: ISSUE-019
+  title: "README cites .github/workflows/ci.yml but the repository has no CI"
+  severity: Medium
+  component: CI
+  steps: "ls .github"
+  expected: "Workflow file exists (README: `Continuous integration runs automatically`)."
+  actual: "No .github directory."
+  tests: "test_05_docs_and_repo.py::test_ci_workflow_mentioned_in_readme_exists"
+  fix: "Add a workflow. A ready-made one is in this project: .github/workflows/ci.yml."
+- id: ISSUE-020
+  title: "README paths are wrong: bridge_types/, bridge_components/ and web/ are not under src/osdagbridge/"
+  severity: Low
+  component: documentation
+  steps: "Follow README: `python src/osdagbridge/web/backend/manage.py runserver`."
+  expected: "Documented paths exist."
+  actual: "Real locations are core/bridge_types, core/bridge_components and top-level web/. The runserver command fails with file-not-found; the real manage.py is a stub that prints `Django manage stub`."
+  tests: "test_05_docs_and_repo.py::test_readme_code_locations_exist, ::test_readme_runserver_path_exists"
+  fix: "Update the README (project-structure tree and Key Code Locations)."
+- id: ISSUE-021
+  title: "docs/architecture.md, developer_guide.md and user_guide.md are one-line placeholders"
+  severity: Low
+  component: documentation
+  steps: "cat docs/*.md"
+  expected: "Usable documentation."
+  actual: "Each reads 'Documentation placeholder.'"
+  tests: "test_05_docs_and_repo.py::test_docs_are_not_placeholders (3 params)"
+  fix: "Write the guides; this report's findings can seed the developer guide."
+- id: ISSUE-022
+  title: "examples/plate_girder/verification_case_01.yaml and _02.yaml contain only a comment"
+  severity: Low
+  component: examples
+  steps: "python -c \"import yaml; print(yaml.safe_load(open('verification_case_01.yaml')))\""
+  expected: "Benchmark input data for verification."
+  actual: "Parses to None."
+  tests: "test_05_docs_and_repo.py::test_verification_cases_contain_data (2 params)"
+  fix: "Add the DDCL benchmark inputs and expected outputs."
+- id: ISSUE-023
+  title: "Upstream test suite is `assert True` placeholders, so it passes while the package's core is unimportable"
+  severity: High
+  component: tests
+  steps: "pytest -q in a fresh install"
+  expected: "Failing tests when the package is broken."
+  actual: "`......` all pass, yet ISSUE-001 makes osdagbridge.core unusable. All 7 test files are placeholders."
+  tests: "test_05_docs_and_repo.py::test_upstream_tests_contain_real_assertions"
+  fix: "Replace the placeholders. This project's tests can be ported as a starting point."
+- id: ISSUE-024
+  title: "tests/integration/verification_ddcl_cases.py is never collected by pytest"
+  severity: Low
+  component: tests
+  steps: "pytest --collect-only -q"
+  expected: "7 test files are collected."
+  actual: "6 are collected; verification_ddcl_cases.py does not match the default `test_*.py` pattern, so even once filled in, the verification cases would never run."
+  tests: "test_05_docs_and_repo.py::test_every_upstream_test_file_is_collectable"
+  fix: "Rename it to test_verification_ddcl_cases.py."

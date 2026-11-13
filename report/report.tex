@@ -1,0 +1,311 @@
+\documentclass[11pt,a4paper]{report}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+\usepackage{booktabs,longtable,array}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black,citecolor=blue!50!black]{hyperref}
+
+\input{generated/test_totals.tex}
+
+% ---------- edit these ----------
+\newcommand{\studentname}{Your Name}
+\newcommand{\studentinst}{Your Institute}
+\newcommand{\reportdate}{November 2026}
+% --------------------------------
+
+\newcommand{\code}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\repo}{\url{https://github.com/osdag-admin/OsdagBridge}}
+
+\lstset{basicstyle=\ttfamily\footnotesize,breaklines=true,frame=single,
+        backgroundcolor=\color{black!4},rulecolor=\color{black!25},columns=fullflexible,
+        keepspaces=true,showstringspaces=false}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+\pagestyle{fancy}\fancyhf{}
+\fancyhead[L]{\small OsdagBridge Software Testing \& Issue Reporting}
+\fancyhead[R]{\small FOSSEE Winter Internship 2026}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+
+\begin{document}
+
+% ------------------------------------------------------------------ title
+\begin{titlepage}
+\centering
+\vspace*{1.5cm}
+{\Large FOSSEE Winter Internship 2026 --- Screening Task Report}\\[2.2cm]
+{\Huge\bfseries OsdagBridge Software Testing \&\\[0.3em] Issue Reporting}\\[1.4cm]
+{\large An independent test suite and defect register for\\
+the OsdagBridge steel-bridge design software}\\[3cm]
+{\large Submitted by}\\[0.4em]
+{\Large\bfseries\studentname}\\[0.3em]
+{\large\studentinst}\\[2.2cm]
+{\large Osdag Project, FOSSEE, IIT Bombay}\\[0.4em]
+\reportdate
+\vfill
+{\small Audited software: OsdagBridge, commit \texttt{2cb7ddc} (7~December~2025)\\
+\repo}
+\end{titlepage}
+
+% ------------------------------------------------------------------ summary
+\chapter*{Summary}
+\addcontentsline{toc}{chapter}{Summary}
+I tested the OsdagBridge repository from the outside, the way a user or a CI server would: install it,
+import it, run its documented commands, and check each promise made in its README. The work produced
+\textbf{\ntests{} automated tests} and a register of \textbf{\nissues{} issues}, each with steps to reproduce,
+expected and actual behaviour, the test that proves it, and a suggested fix.
+
+\begin{itemize}[leftmargin=1.4em,itemsep=0.2em]
+\item \textbf{The package core cannot be imported.} \code{osdagbridge/core/__init__.py} runs
+  \code{from .models import *}, but there is no \code{models} module. \textbf{67 of the package's 74 modules fail
+  to import} (ISSUE-001, Critical). Removing that one line, or adding an empty file, fixes it.
+\item \textbf{The project's own test-suite cannot notice.} All seven upstream test files are \code{assert True}
+  placeholders, so \code{pytest} is green while the core is unusable; one file is not even collected
+  (ISSUE-023, ISSUE-024).
+\item \textbf{A structural check that cannot fail.} \code{check_local_buckling()} takes no inputs and always
+  returns \code{True} (ISSUE-014).
+\item Of the \nissues{} issues: 1 Critical, 4 High, 9 Medium, 10 Low. Most others are documented features that
+  are not implemented yet (CLI, unit conversion, validation, IRC load models).
+\end{itemize}
+
+The suite is green today (\npass{} pass, \nxfail{} are \emph{strict expected failures} that each document one
+verified defect), and it is built so that fixing a bug turns the matching test red until it is promoted to a
+normal regression test.
+
+\tableofcontents
+
+% ------------------------------------------------------------------ 1
+\chapter{Introduction}
+\section{FOSSEE and the internship}
+FOSSEE (Free/Libre and Open Source Software for Education) at IIT Bombay promotes the use of open-source software
+in education and offers remote internships in which students contribute to its projects. Applicants complete a
+screening task; this report documents my submission for the Osdag project's software-testing task.
+
+\section{Osdag}
+Osdag (Open Steel Design and Graphics) is free and open-source software for the design and detailing of steel
+structures following the Indian Standard IS~800:2007.
+
+\section{OsdagBridge}
+OsdagBridge extends Osdag to bridges. According to its README it is a ``modular, shared-core software plugin for the
+analysis and design of steel bridges'': one Python core (\code{osdagbridge.core}) is meant to serve a command-line
+interface, a PySide6 desktop application and a Django\,+\,React web application. It lists plate-girder bridges as
+supported, three analysis back-ends (a native solver, OpenSeesPy, OspGrillage) and the Indian bridge codes
+IRC:6-2017, IRC:22-2015 and IRC:24-2010. Source: \repo.
+
+% ------------------------------------------------------------------ 2
+\chapter{Screening Task}
+\section{Problem statement}
+Test the OsdagBridge software, identify defects, and report them in a form the maintainers can act on:
+reproducible steps, expected versus actual behaviour, and severity.
+
+\section{Tasks done}
+\begin{enumerate}[leftmargin=1.6em,itemsep=0.15em]
+\item Cloned the repository, recorded the audited commit, and installed it into a clean virtual environment.
+\item Explored the code and extracted every verifiable promise in the README (install, CLI, desktop, codes, CI,
+  paths, examples).
+\item Wrote \ntests{} pytest tests in six modules, each probe isolated in its own interpreter.
+\item Registered \nissues{} issues in one YAML file and generated the Markdown register and the tables in this report
+  from it.
+\item Validated the test suite itself (Chapter~\ref{ch:validation}).
+\item Added a GitHub Actions workflow and a paced demo script used for the screencast.
+\end{enumerate}
+
+% ------------------------------------------------------------------ 3
+\chapter{Methodology}
+\section{Target and environment}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Repository & \texttt{osdag-admin/OsdagBridge}\\
+Commit & \texttt{2cb7ddc} (``Refactor'', 7 December 2025)\\
+Python / pytest & 3.13.18 / 9.1.1\\
+Operating system & Linux 6.18, x86\_64\\
+Install method & \code{pip install -e .} in a fresh virtual environment\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Exploration}
+The first step was to find out what the software \emph{is}. The repository is an early scaffold: most modules are a
+docstring marked ``(stub)'' and one to six lines of code. Installation succeeds, so I walked every module in the
+installed package and tried to import it, then ran each command in the README, then compared README claims with the file
+tree. Every mismatch became a candidate test.
+
+\section{Design principles}
+\begin{description}[leftmargin=1.4em,style=nextline,itemsep=0.3em]
+\item[Isolated probes.] ISSUE-001 is an import-time failure. In-process, it would break every later test, so each
+  probe runs in a fresh \code{python -I} subprocess with only the tree under test on \code{sys.path}.
+\item[Strict expected failures.] A known defect is marked \code{xfail(strict=True, raises=AssertionError)}. The suite
+  stays green, but the moment someone fixes the bug the test \emph{unexpectedly passes} and the build fails, which forces
+  the test to be promoted to a regression test. \code{raises=AssertionError} means a test cannot be ``expected to fail''
+  by crashing for an unrelated reason.
+\item[Isolating the blocker.] A \code{patched_src} fixture copies the source tree and adds an empty
+  \code{core/models.py}. It lets the suite test the behaviour of everything \emph{behind} ISSUE-001 without hiding
+  ISSUE-001 itself. The upstream repository is never modified.
+\item[Traceability.] A test cites each finding by ID; \code{test_06_traceability.py} fails if a test cites an unregistered
+  issue or an issue has no test, so tests and register cannot drift apart.
+\end{description}
+
+\section{Severity scale}
+\begin{description}[leftmargin=1.4em,itemsep=0.1em]
+\item[Critical] the package cannot be used.
+\item[High] a promised feature is absent, or a check gives false assurance.
+\item[Medium] documented behaviour does not work.
+\item[Low] metadata, documentation or hygiene.
+\end{description}
+
+\section{Suite structure}
+\begin{center}\input{generated/test_stats.tex}\end{center}
+
+% ------------------------------------------------------------------ 4
+\chapter{Results}
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{generated/fig_overview.pdf}
+\caption{Findings by severity (left) and tests by module (right; pass\,+\,documented defect).}
+\end{figure}
+
+\begin{center}\input{generated/issues_counts.tex}\end{center}
+
+The repository is explicitly a scaffold, so many findings are ``documented but not implemented'' rather than
+regressions. They are reported because the README presents them as working, and because the tests will become useful
+regression tests as soon as the features are written.
+
+\section{Key findings}
+\subsection*{ISSUE-001 (Critical): the core cannot be imported}
+\begin{lstlisting}
+$ python -c "import osdagbridge.core.utils.units"
+ModuleNotFoundError: No module named 'osdagbridge.core.models'
+\end{lstlisting}
+\code{core/__init__.py} contains \code{from .models import *} and no \code{models} module exists. Importing any
+submodule runs the package \code{__init__} first, so every module below \code{osdagbridge.core} fails: I measured
+\textbf{67 of 74 modules}; only the top-level package and the CLI/desktop stubs import. In a temporary copy, adding an
+empty \code{models.py} made all 74 modules import, so this is a single root cause with a one-line fix.
+
+\subsection*{ISSUE-023 and ISSUE-024 (High, Low): the test-suite cannot catch it}
+\begin{lstlisting}
+$ pytest -q        # upstream suite, same install
+......             # 6 passed
+\end{lstlisting}
+All seven upstream test files consist of \code{assert True}. The result above is green even though ISSUE-001 makes the
+core unusable. In addition, \code{verification_ddcl_cases.py} does not match pytest's \code{test_*.py} pattern, so
+only 6 of the 7 files are collected; the benchmark-verification tests would never run even once written.
+
+\subsection*{ISSUE-014 (High): a check that cannot fail}
+\code{check_local_buckling()} accepts no arguments and returns \code{True}. A design check that always passes gives false
+assurance in structural software. \code{area()} in the same package returns \code{0.0}. The tests call them with
+realistic inputs (a plate with $b/t = 1000$ must fail the check) and document the gap.
+
+\subsection*{ISSUE-009 and ISSUE-010 (Medium): no units, no validation}
+\begin{lstlisting}
+to_si(250.0, 'mm')   ->  250.0        # expected 0.25
+validate_project(None) -> True        # accepts anything
+\end{lstlisting}
+\code{to_si} returns its input unchanged for every unit, and silently accepts unknown units, so a 250~mm dimension would
+be treated as 250~m. \code{validate_project} returns \code{True} for \code{None}, an empty project and a negative span.
+Both matter before any numerical code is added.
+
+\subsection*{ISSUE-004 (High): the CLI does not work}
+\begin{lstlisting}
+$ python -m osdagbridge.cli analyze does_not_exist.yaml
+osdagbridge CLI (stub)
+$ echo $?
+0
+\end{lstlisting}
+No argument is parsed, no error is possible, and there is no \code{report} command or console-script entry point
+(ISSUE-003), so the README's \code{osdagbridge analyze project.yaml --solver native} cannot run.
+
+\section{What works}
+The suite also records \npass{} passing behaviours so regressions are caught: the package installs on Python 3.13;
+the top-level package imports; the CLI module runs and exits cleanly; the IRC:6 entry resolves in the registry and unknown
+codes return \code{None}; the missing OpenSees/OspGrillage adapters raise a clear \code{RuntimeError}; the project's
+\code{OsdagError} derives from \code{Exception}; the example input is valid YAML; and, with ISSUE-001 isolated, all
+74 modules import. Most of these pin down \emph{current stub behaviour}; they are guard-rails, not evidence of finished
+features.
+
+\section{Complete register}
+\begin{center}\small\input{generated/issues_table.tex}\end{center}
+Full details of every issue are in Appendix~\ref{app:issues} and in \code{issues/ISSUES.md}.
+
+% ------------------------------------------------------------------ 5
+\chapter{Validating the Test Suite}\label{ch:validation}
+A test suite that is only ever run on the broken code proves little, so I checked three things.
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=0.25em]
+\item \textbf{Each expected failure fails for its stated reason.} Running \code{pytest --runxfail} turns all \nxfail{}
+  expected failures into real failures; their messages (for example \code{assert 250.0 == 0.25}, or the list of
+  placeholder test files) match the issue text.
+\item \textbf{Fixes are detected.} In a copy of the repository I added \code{core/models.py}, a \code{LICENSE} file
+  and a consistent version. The tests for ISSUE-001, ISSUE-002 and ISSUE-015 became strict unexpected passes and failed
+  the build, as intended; every unrelated test was unchanged. (My first attempt to change \code{setup.cfg} used the wrong
+  pattern and changed nothing, which the suite correctly also reported as unchanged.)
+\item \textbf{Results do not depend on the machine.} While generating this report's numbers I found that the
+  wheel-contents test was silently \emph{skipped} in an environment without \code{setuptools}, producing 62 instead of
+  63 results. I changed it to build with isolation and made the report script refuse to run if any test is skipped.
+  The final counts (\npass{} passed, \nxfail{} xfailed) are identical in a bare virtual environment and in the system
+  Python.
+\end{enumerate}
+
+% ------------------------------------------------------------------ 6
+\chapter{Recommendations}
+In priority order:
+\begin{enumerate}[leftmargin=1.6em,itemsep=0.25em]
+\item \textbf{Fix ISSUE-001} (one line). Until then nothing under \code{osdagbridge.core} can be used or tested.
+\item \textbf{Replace the placeholder tests} and rename \code{verification_ddcl_cases.py}. Adopt the tests in this
+  project as a starting point, and add the CI workflow (the README already claims one exists; ISSUE-019).
+\item \textbf{Make unsafe stubs fail loudly.} Until implemented, \code{check_local_buckling()}, \code{design()} and
+  \code{validate_project()} should raise \code{NotImplementedError} rather than return success.
+\item \textbf{Implement unit conversion and input validation} (pydantic is already a dependency) before numerical
+  work; add boundary-value tests against the IRC/IS tables.
+\item \textbf{Make the CLI real}: argument parsing, non-zero exit codes, a \code{[project.scripts]} entry.
+\item \textbf{Tidy metadata and docs}: one version, correct license file and author e-mail, README paths, Python
+  floor versus classifiers, non-placeholder documentation.
+\end{enumerate}
+
+% ------------------------------------------------------------------ 7
+\chapter{Limitations and Future Work}
+\begin{itemize}[leftmargin=1.4em,itemsep=0.2em]
+\item I audited one commit. The repository is under active development and results may change.
+\item The PySide6 desktop GUI, the Django/React web application and the OpenSeesPy, OspGrillage and pythonOCC
+  integrations were not exercised, because the audited commit only contains stubs for them. The suite records that fact
+  rather than testing them.
+\item Severity ratings are my judgement against the scale in Chapter~3.
+\item Future work: port the tests into the upstream repository as the features land; add property-based tests for unit
+  conversion; add GUI smoke tests (\code{pytest-qt}) and API tests once the web backend exists; verify against the DDCL
+  benchmark cases when they are provided.
+\end{itemize}
+
+% ------------------------------------------------------------------ 8
+\chapter{Conclusion}
+The most valuable finding is also the cheapest to fix: a one-line import error that makes 67 of 74 modules unusable,
+hidden by a test-suite that cannot fail. The deliverable is not just a list of bugs but a reusable safety net: \ntests{}
+traceable tests that stay green now, turn red when a bug is fixed, and become the regression suite for the features
+still to be written.
+
+% ------------------------------------------------------------------ appendices
+\appendix
+\chapter{Issue Register (details)}\label{app:issues}
+\small
+\input{generated/issues_detail.tex}
+\normalsize
+
+\chapter{Reproducing the Results}
+\begin{lstlisting}
+git clone https://github.com/osdag-admin/OsdagBridge.git OsdagBridge
+git -C OsdagBridge checkout 2cb7ddc
+pip install -r requirements-test.txt
+OSDAGBRIDGE_REPO=./OsdagBridge pytest             # 17 passed, 46 xfailed
+OSDAGBRIDGE_REPO=./OsdagBridge pytest --runxfail  # the 46 raw failures
+python tools/render_issues.py                     # regenerate ISSUES.md
+./demo.sh                                         # paced walkthrough
+\end{lstlisting}
+
+\end{document}

@@ -1,0 +1,31 @@
+\begin{longtable}{@{}p{0.9cm}p{1.5cm}p{2.6cm}p{8.2cm}@{}}
+\toprule
+\textbf{ID} & \textbf{Sev.} & \textbf{Component} & \textbf{Finding}\\
+\midrule
+\endhead
+001 & Critical & core & Every osdagbridge.\allowbreak{}core.\allowbreak{}* import fails: core/\allowbreak{}\_\allowbreak{}\_\allowbreak{}init\_\allowbreak{}\_\allowbreak{}.\allowbreak{}py imports a missing `models` module \\
+002 & Low & packaging & pyproject.\allowbreak{}toml declares license file `LICENSE`, but the repository contains `LICENSE.\allowbreak{}txt` \\
+003 & Medium & packaging /\allowbreak{} CLI & No console-script entry point, so the documented `osdagbridge .\allowbreak{}.\allowbreak{}.\allowbreak{}` command does not exist \\
+004 & High & CLI & CLI is a stub: ignores all arguments, never fails, has no `report` command \\
+005 & Medium & desktop & Desktop app cannot be launched as documented; PySide6 is not a declared dependency \\
+006 & Low & packaging /\allowbreak{} reports & LaTeX report template is not shipped in the built wheel \\
+007 & Medium & codes & Code registry knows only IRC:6-2017; IRC:22-2015 and IRC:24-2010 are listed in README but unavailable \\
+008 & High & loads & IRC:6 vehicle loads and Class A vehicle are empty lists \\
+009 & Medium & utils & to\_\allowbreak{}si() never converts units and silently accepts unknown units \\
+010 & Medium & utils & validate\_\allowbreak{}project() returns True for every input, including None, \{\} and negative span \\
+011 & Medium & plate\_\allowbreak{}girder & PlateGirderDTO has a single field (`name`); no span, width, loading or section data \\
+012 & Medium & plate\_\allowbreak{}girder & preliminary\_\allowbreak{}sizing() returns the girder name as `depth\_\allowbreak{}m` \\
+013 & Medium & plate\_\allowbreak{}girder /\allowbreak{} solvers & design(), analyse() and run\_\allowbreak{}native\_\allowbreak{}analysis() report success for any input; solver errors use RuntimeError \\
+014 & High & bridge\_\allowbreak{}components & Girder area() and check\_\allowbreak{}local\_\allowbreak{}buckling() take no inputs; the check always passes \\
+015 & Low & packaging & Three different versions: \_\allowbreak{}\_\allowbreak{}version\_\allowbreak{}\_\allowbreak{} = 0.\allowbreak{}0.\allowbreak{}0, pyproject 0.\allowbreak{}1.\allowbreak{}0, setup.\allowbreak{}cfg 0.\allowbreak{}0.\allowbreak{}0 \\
+016 & Low & packaging & requires-python >=3.\allowbreak{}9 but classifiers list only Python 3.\allowbreak{}10 and 3.\allowbreak{}11 \\
+017 & Low & packaging & Author e-mail domain looks like a typo: `contact-osdag@efossee.\allowbreak{}in` \\
+018 & Low & packaging & core/\allowbreak{}bridge\_\allowbreak{}components/\allowbreak{}super\_\allowbreak{}structure/\allowbreak{} has no \_\allowbreak{}\_\allowbreak{}init\_\allowbreak{}\_\allowbreak{}.\allowbreak{}py \\
+019 & Medium & CI & README cites .\allowbreak{}github/\allowbreak{}workflows/\allowbreak{}ci.\allowbreak{}yml but the repository has no CI \\
+020 & Low & documentation & README paths are wrong: bridge\_\allowbreak{}types/\allowbreak{}, bridge\_\allowbreak{}components/\allowbreak{} and web/\allowbreak{} are not under src/\allowbreak{}osdagbridge/\allowbreak{} \\
+021 & Low & documentation & docs/\allowbreak{}architecture.\allowbreak{}md, developer\_\allowbreak{}guide.\allowbreak{}md and user\_\allowbreak{}guide.\allowbreak{}md are one-line placeholders \\
+022 & Low & examples & examples/\allowbreak{}plate\_\allowbreak{}girder/\allowbreak{}verification\_\allowbreak{}case\_\allowbreak{}01.\allowbreak{}yaml and \_\allowbreak{}02.\allowbreak{}yaml contain only a comment \\
+023 & High & tests & Upstream test suite is `assert True` placeholders, so it passes while the package's core is unimportable \\
+024 & Low & tests & tests/\allowbreak{}integration/\allowbreak{}verification\_\allowbreak{}ddcl\_\allowbreak{}cases.\allowbreak{}py is never collected by pytest \\
+\bottomrule
+\end{longtable}
